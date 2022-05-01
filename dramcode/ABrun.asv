@@ -10,8 +10,8 @@ method = 'dram'; % 'mh','am','dr', or 'dram', see below
 
 % data
 clear model data params options
-% data.tdata = [2 4 6 8 10]';
-% data.ydata = [0.661 0.668 0.663 0.682 0.650]';
+data.tdata = [2 4 6 8 10]';
+data.ydata = [0.661 0.668 0.663 0.682 0.650]';
 
 data.tdata = linspace(10, 66, 15); % x
 data.ydata = [96.1 80.12 67.66 57.96 50.90 44.84 39.75 36.16 ...
@@ -21,7 +21,7 @@ data.std = [0.2 0.5 0.8 0.45 0.32 0.15 0.7 0.65 ...
 
 
 % LSQ fit and its Jacobian 
-k0   = [-15, 0.0]; %initial guess [phi, h]
+k0   = [-18.41, 0.00191]; %initial guess [phi, h]
 [kopt,rss] = fminsearch(@ABss,k0,[],data);
 xjac = jacob(@ABfun,data.tdata,kopt);      % numerical Jacobian
 % J    = ABjac(data.tdata,kopt);             % analytical Jacobian
@@ -49,9 +49,9 @@ switch method
   drscale  = 0; 
   adaptint = 100;
  case 'dram'
-  nsimu    = 3000;
-  drscale  = 10; 
-  adaptint = 3000;
+  nsimu    = 30000;
+  drscale  = 2; 
+  adaptint = 100;
 end
 
 % create input arguments for the dramrun function
@@ -64,8 +64,8 @@ params.n       = n;    % number of observations
 params.sigma2  = rss;  % prior for error variance sigma^2
 params.n0      = 1;    % prior accuracy for sigma^2
 
-params.parmu0   = [0, 0];                % prior mean of theta
-params.parsig0  = [20, 20];            % prior std of theta
+params.parmu0   = [-18.41, 0.00191];                % prior mean of theta
+params.parsig0  = 0.5*params.parmu0;            % prior std of theta
 
 options.nsimu    = nsimu;               % size of the chain
 options.adaptint = adaptint;            % adaptation interval

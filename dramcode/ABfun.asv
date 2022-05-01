@@ -1,20 +1,20 @@
-function T=ABfun(x,input)
+function y=ABfun(x,input)
 % model function for "A<->B" example
 
-% k1 = b(1);
-% k2 = b(2);
-% 
-% A0 = 1;
-% B0 = 0;
-% 
-% kk = k2/(k1+k2);
-% 
-% y = kk + (A0-kk).*exp(-(k1+k2).*x);
+k1 = b(1);
+k2 = b(2);
+
+A0 = 1;
+B0 = 0;
+
+kk = k2/(k1+k2);
+
+y = kk + (A0-kk).*exp(-(k1+k2).*x);
 
 phi = input(1);
 h = input(2);
 a = 0.95; b = 0.95;
-L = 70; 
+L = 70; x = 20;
 k = 2.37;
 Tamb = 21.29;
 
