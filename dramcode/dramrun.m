@@ -119,7 +119,7 @@ for isimu=2:nsimu
 
   if isimu/printint == fix(isimu/printint) % info on every printint iteration
     fprintf('isimu=%d, %d%% done, accepted: %d%%\n',...
-            isimu,fix(isimu/nsimu*100),fix((acce/isimu)*100));
+            isimu,fix(isimu/nsimu*100),fix((acce/isimu)));
   end
   
   newpar = oldpar+randn(1,npar)*R;     % a new proposal
@@ -133,7 +133,7 @@ for isimu=2:nsimu
   else % inside bounds, check if accepted
     newss  = feval(ssfun,newpar,data);   % sum-of-squares
     newprior = feval(priorfun,newpar,params); % prior ss
-    alpha12 = min(1,exp(-0.5*(newss-oldss)/sigma2 -0.5*(newprior-oldprior)));
+    alpha12 = min(1, exp(-0.5*(newss-oldss)/sigma2 -0.5*(newprior-oldprior)));
     if rand < alpha12 % we accept
       accept   = 1;
       acce     = acce+1;
@@ -171,7 +171,7 @@ for isimu=2:nsimu
     s2chain(isimu,:) = sigma2;
   end
   
-  if adaptint>0 & fix(isimu/adaptint) == isimu/adaptint
+  if adaptint>0 && fix(isimu/adaptint) == isimu/adaptint
     % adapt the proposal covariances
     if verbosity, fprintf('adapting\n'); end
     % update covariance and mean of the chain
@@ -193,12 +193,12 @@ for isimu=2:nsimu
 end
 
 % calculate covariance and mean of the chain
-[chaincov,chainmean,wsum] = covupd(chain((lasti+1):isimu,:),1, ...
+[chaincov, chainmean, wsum] = covupd(chain((lasti+1):isimu,:),1, ...
                                    chaincov,chainmean,wsum);
 
 
 results.class = 'MCMC results';
-results.accepted=acce./nsimu;              % acceptance ratio
+results.accepted = acce./nsimu;              % acceptance ratio
 results.mean = chainmean;
 results.cov  = chaincov;
 results.qcov = R'*R;
