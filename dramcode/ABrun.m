@@ -4,9 +4,9 @@
 % Sum of squares function: ABss.m
 % Prior function ABprior.m
 % Jacobian function: ABjac.m
-
+clear
 % select the method used
-method = 'dram'; % 'mh','am','dr', or 'dram', see below
+method = ['dram']; % 'mh','am','dr', or 'dram', see below
 
 % data
 clear model data params options
@@ -21,9 +21,9 @@ data.std = [0.2 0.5 0.8 0.45 0.32 0.15 0.7 0.65 ...
 
 
 % LSQ fit and its Jacobian 
-k0   = [-15, 0.0]; %initial guess [phi, h]
-[kopt,rss] = fminsearch(@ABss,k0,[],data);
-xjac = jacob(@ABfun,data.tdata,kopt);      % numerical Jacobian
+k0   = [18 0]; %initial guess [phi, h]
+[kopt, rss] = fminsearch(@ABss,k0,[],data);
+xjac = jacob(@ABfun, data.tdata, kopt);      % numerical Jacobian
 % J    = ABjac(data.tdata,kopt);             % analytical Jacobian
 
 n=length(data.tdata); p = length(k0);
@@ -50,8 +50,8 @@ switch method
   adaptint = 100;
  case 'dram'
   nsimu    = 3000;
-  drscale  = 10; 
-  adaptint = 3000;
+  drscale  = 2; 
+  adaptint = 100;
 end
 
 % create input arguments for the dramrun function
@@ -63,28 +63,31 @@ params.par0    = kopt; % initial parameter values
 params.n       = n;    % number of observations
 params.sigma2  = rss;  % prior for error variance sigma^2
 params.n0      = 1;    % prior accuracy for sigma^2
+params.bounds  = [-20 -1; 20 1];
 
-params.parmu0   = [0, 0];                % prior mean of theta
-params.parsig0  = [20, 20];            % prior std of theta
+params.parmu0   = [18.41, -1];            % prior mean of theta
+params.parsig0  = [5, 0.1].^2;            % prior std of theta
 
 options.nsimu    = nsimu;               % size of the chain
 options.adaptint = adaptint;            % adaptation interval
 options.drscale  = drscale;
-options.qcov     = cmat.*2.4^2./p;      % initial proposal covariance 
+options.qcov     = cmat.*2.38^2./p;      % initial proposal covariance 
+% options.qcov     = [1 0.9;0.9 1];
 
 % run the chain
-[results,chain] = dramrun(model,data,params,options);
+[results,chain, s2chain] = dramrun(model,data,params,options);
 
 %tau=iact(chain); % Integrated Autocorrelation Time
 
-figure(1);clf
-t = linspace(10, 66, 15);
-plot(data.tdata,data.ydata,'o',t,ABfun(t,kopt),'-')
-legend('data','LSQ estimate')
+% figure(1);clf
+% t = linspace(10, 66, 15);
+% plot(data.tdata,data.ydata,'o',t,ABfun(t,kopt),'-')
+% legend('data','LSQ estimate')
+% 
+% figure(2);clf
+% plot(chain(:,1),chain(:,2),'.')
+% xlabel('k_1'); ylabel('k_2');title('MCMC chain');
 
-figure(2);clf
-plot(chain(:,1),chain(:,2),'.')
-xlabel('k_1'); ylabel('k_2');title('MCMC chain');
 % add 95% ellipses of the proposal to the plot
 %hold on;axis manual
 %ellipse(kopt+[100 100],cmat*6,'Linewidth',1,'Color','black')
@@ -99,3 +102,27 @@ title(sprintf('%s chain. Accepted %.1f%%',upper(method),results.accepted*100))
 subplot(2,1,2)
 plot(chain(:,2),'.');ylabel('k_2');
 %title(sprintf('\\tau = %.1f',tau(2)));
+N = 3000;
+burn_in = round(N*0.2);
+
+figure()
+title('Marginal posterior distributions of parameters')
+subplot(1,2,1)
+histogram(chain(burn_in+1:end,1),50,'edgecolor','k','Normalization','pdf'); hold on;
+plot(params.parmu0(1),0,'*', 'Markersize', 15,'LineWidth',3);
+Elocs = linspace(lobounds(1),upbounds(1),200);
+plot(Elocs,normpdf(Elocs, prior_mean(1), sqrt(prior_var(1,1))  ),'LineWidth',5);
+xlim([phi_min, phi_max])
+xlabel('phi')
+legend('Posterior Samples','True','Prior','location','northwest')
+set(gca,'FontSize',20)
+
+subplot(1,2,2)
+histogram(chain(burn_in+1:end,2),50,'edgecolor','k','Normalization','pdf'); hold on;
+plot(params.parmu0(2),0,'*', 'Markersize', 15,'LineWidth',3);
+Tylocs = linspace(lobounds(2),upbounds(2),200);
+plot(Tylocs,normpdf(Tylocs, prior_mean(2), sqrt(prior_var(2,2))  ),'LineWidth',5);
+xlim([h_min, h_max])
+xlabel('h')
+legend('Posterior Samples','True','Prior','location','northwest')
+set(gca,'FontSize',20)

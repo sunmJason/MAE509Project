@@ -19,7 +19,8 @@ k = 2.37;
 Tamb = 21.29;
 
 gamma = sqrt(2*(a+b)*h/a/b/k);
-c1 = -phi/k/gamma * (exp(gamma*L)*(h+k*gamma))/((exp(-gamma*L)*(h-k*gamma) + exp(gamma*L)*(h+k*gamma)));
+c1 = -phi/k/gamma * (exp(gamma*L)*(h+k*gamma))/...
+    ((exp(-gamma*L)*(h-k*gamma) + exp(gamma*L)*(h+k*gamma)));
 c2 = phi/k/gamma + c1;
 
 T = c1 * exp(-gamma * x) + c2 * exp(gamma * x) + Tamb;
