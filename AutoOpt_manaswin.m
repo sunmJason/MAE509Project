@@ -1,11 +1,11 @@
-function n= AutoOpt(vars)
+function n= AutoOpt_manaswin(vars)
 % DRAM parameter to adjust
 NumbSim = 3000;
-DRScale = 2;
+DRScale = 10;
 ADAptint = 100;
-parmu0= [vars.mean1,vars.mean2];
-parsig0= [vars.var1,vars.var2];
+
 % select the method used
+method = ['dram']; % 'mh','am','dr', or 'dram', see below
 method = ['dram']; % 'mh','am','dr', or 'dram', see below
 
 % data
@@ -16,12 +16,6 @@ clear model data params options
 data.tdata = linspace(10, 66, 15); % x
 data.ydata = [96.1 80.12 67.66 57.96 50.90 44.84 39.75 36.16 ...
     33.31 31.15 29.28 27.88 27.18 26.40 25.86]; % T
-data.ydata = ABfun(data.tdata, [-18, 1.0]) + randn(1, 15);
-% data.std = ones(1,15);
-
-% Data from problem statement
-% data.ydata = [90 80.12 50.66 54.96 50.90 44.84 33.75 36.16 ...
-%     33.31 25.15 29.28 32.88 43.18 26.40 10.86];
 data.std = [0.2 0.5 0.8 0.45 0.32 0.15 0.7 0.65 ...
     0.54 0.48 0.84 0.56 0.74 0.36 0.75];
 
@@ -30,6 +24,7 @@ k0   = [-18 0]; %initial guess [phi, h]
 [kopt, rss] = fminsearch(@ABss,k0,[],data);
 xjac = jacob(@ABfun, data.tdata, kopt);      % numerical Jacobian
 % J    = ABjac(data.tdata,kopt);             % analytical Jacobian
+
 
 n=length(data.tdata); p = length(k0);
 mse = rss/(n-p); % mean squared error
@@ -42,37 +37,35 @@ cmat = v'*diag(1./s.^2)*v*mse;
 % parameters for mcm
 switch method
  case 'mh'
-   nsimu    = NumbSim;
+   nsimu    = 3000;
    drscale  = 0;
    adaptint = 0;
  case 'dr'
-  nsimu    = NumbSim;
-  drscale  = DRScale; 
+  nsimu    = 3000;
+  drscale  = 2; 
   adaptint = 0;
  case 'am'
-  nsimu    = NumbSim;
+  nsimu    = 3000;
   drscale  = 0; 
-  adaptint = ADAptint;
+  adaptint = 100;
  case 'dram'
-  nsimu    = NumbSim;
-  drscale  = DRScale; 
-  adaptint = ADAptint;
+  nsimu    = 10000;
+  drscale  = 10; 
+  adaptint = 100;
 end
 
 % create input arguments for the dramrun function
 
-model.ssfun    = @ABss;
+model.ssfun    = @ABss2;
 model.priorfun = @ABprior;
 
 params.par0    = kopt; % initial parameter values
 params.n       = n;    % number of observations
 params.sigma2  = rss;  % prior for error variance sigma^2
 params.n0      = 1;    % prior accuracy for sigma^2
-params.bounds  = [-40 -1; 20 1];
-
-params.parmu0   = parmu0;            % prior mean of theta
-params.parsig0  = parsig0;            % prior std of theta
-
+params.bounds  = [-40 0; 1 20];
+params.parmu0= [vars.mean1,vars.mean2];
+params.parsig0= [vars.var1,vars.var2];
 options.nsimu    = nsimu;               % size of the chain
 options.adaptint = adaptint;            % adaptation interval
 options.drscale  = drscale;
@@ -82,8 +75,7 @@ options.qcov     = cmat.*2.38^2./p;      % initial proposal covariance
 % run the chain
 [results,chain, s2chain] = dramrun(model,data,params,options);
 
-n = -results.accepted;
-
+n = -results.accepted; 
 
 %tau=iact(chain); % Integrated Autocorrelation Time
 

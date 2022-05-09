@@ -16,7 +16,6 @@ clear model data params options
 data.tdata = linspace(10, 66, 15); % x
 data.ydata = [96.1 80.12 67.66 57.96 50.90 44.84 39.75 36.16 ...
     33.31 31.15 29.28 27.88 27.18 26.40 25.86]; % T
-data.ydata = ABfun(data.tdata, [-18, 1.0]) + randn(1, 15);
 data.std = [0.2 0.5 0.8 0.45 0.32 0.15 0.7 0.65 ...
     0.54 0.48 0.84 0.56 0.74 0.36 0.75];
 
@@ -25,8 +24,6 @@ k0   = [-18 0]; %initial guess [phi, h]
 [kopt, rss] = fminsearch(@ABss,k0,[],data);
 xjac = jacob(@ABfun, data.tdata, kopt);      % numerical Jacobian
 % J    = ABjac(data.tdata,kopt);             % analytical Jacobian
-
-
 n=length(data.tdata); p = length(k0);
 mse = rss/(n-p); % mean squared error
 
@@ -50,29 +47,29 @@ switch method
   drscale  = 0; 
   adaptint = 100;
  case 'dram'
-  nsimu    = 3000;
-  drscale  = 2; 
-  adaptint = 100;
+  nsimu    = 10000;
+  drscale  = 0; 
+  adaptint = 0;
 end
 
 % create input arguments for the dramrun function
 
-model.ssfun    = @ABss;
+model.ssfun    = @ABss2;
 model.priorfun = @ABprior;
 
-params.par0    = kopt; % initial parameter values
+params.par0    = [-18 0]; % initial parameter values
 params.n       = n;    % number of observations
-params.sigma2  = rss;  % prior for error variance sigma^2
+params.sigma2  = 0.5;  % prior for error variance sigma^2
 params.n0      = 1;    % prior accuracy for sigma^2
-params.bounds  = [-40 -1; 20 1];
+params.bounds  = [-40 -5; 0 5];
 	
-params.parmu0   = [0.0172796162981    3.24374887094608       ];            % prior mean of theta
-params.parsig0  = [4.48917877367281    6.06094157163099   ];            % prior std of theta
+params.parmu0   =  [-18 0];%params.bounds(1,:)+(params.bounds(2,:)-params.bounds(1,:)).*rand(1,2); %;            % prior mean of theta
+params.parsig0  = [4 0.1];            % prior std of theta
 
 options.nsimu    = nsimu;               % size of the chain
 options.adaptint = adaptint;            % adaptation interval
 options.drscale  = drscale;
-options.qcov     = cmat.*2.38^2./p;      % initial proposal covariance 
+options.qcov     = diag(params.parsig0.^2);%cmat.*2.38^2./p;      % initial proposal covariance 
 % options.qcov     = [1 0.9;0.9 1];
 
 % run the chain
@@ -103,17 +100,21 @@ title(sprintf('%s chain. Accepted %.1f%%',upper(method),results.accepted*100))
 subplot(2,1,2)
 plot(chain(:,2),'.');ylabel('k_2');
 %title(sprintf('\\tau = %.1f',tau(2)));
-N = 3000;
+N = nsimu;
 burn_in = round(N*0.2);
 
+lobounds = params.bounds(1,:);
+upbounds =params.bounds(2,:);
+prior_mean = params.parmu0;
+prior_var = params.parsig0;
 figure()
 title('Marginal posterior distributions of parameters')
 subplot(1,2,1)
 histogram(chain(burn_in+1:end,1),50,'edgecolor','k','Normalization','pdf'); hold on;
 plot(params.parmu0(1),0,'*', 'Markersize', 15,'LineWidth',3);
 Elocs = linspace(lobounds(1),upbounds(1),200);
-plot(Elocs,normpdf(Elocs, prior_mean(1), sqrt(prior_var(1,1))  ),'LineWidth',5);
-xlim([phi_min, phi_max])
+plot(Elocs,normpdf(Elocs, prior_mean(1), prior_var(1)  ),'LineWidth',5);
+% xlim([phi_min, phi_max])
 xlabel('phi')
 legend('Posterior Samples','True','Prior','location','northwest')
 set(gca,'FontSize',20)
@@ -122,8 +123,51 @@ subplot(1,2,2)
 histogram(chain(burn_in+1:end,2),50,'edgecolor','k','Normalization','pdf'); hold on;
 plot(params.parmu0(2),0,'*', 'Markersize', 15,'LineWidth',3);
 Tylocs = linspace(lobounds(2),upbounds(2),200);
-plot(Tylocs,normpdf(Tylocs, prior_mean(2), sqrt(prior_var(2,2))  ),'LineWidth',5);
-xlim([h_min, h_max])
+plot(Tylocs,normpdf(Tylocs, prior_mean(2), prior_var(2)  ),'LineWidth',5);
+% xlim([h_min, h_max])
 xlabel('h')
 legend('Posterior Samples','True','Prior','location','northwest')
 set(gca,'FontSize',20)
+
+fig = figure();
+nlags =30;
+[ACF_C,lags,bounds] = autocorr(chain(1:end,1), nlags, 0);
+[ACF_K,lags,bounds]= autocorr(chain(1:end,2), nlags, 0);
+plot(lags,ACF_C,'bo-',lags,ACF_K,'r*-','linewidth',3);
+ylabel('Autocorrelation');
+xlabel('Lag');
+grid on;
+legend('C','K');
+% set(gca,'FontSize',24)
+set(gca,'FontSize',20)
+saveas(fig,"P2_Autocorelation.eps",'epsc');
+% print(gcf,'-depsc2',["P2_Autocorelation" '.eps']);
+
+% Covariance and Correlation Matrices
+cov_matrix  = cov(chain);
+corr_matrix = corr(chain);
+
+fwds = [];
+for i = burn_in+1:N
+    fwds(end+1,:) = ABfun(data.tdata, chain(i,:));
+end
+
+fwd_mean = mean(fwds);
+fwd_stDev  = std(fwds);
+    
+    
+% plot data and model prediction
+fig = figure();
+errorbar(data.tdata, data.ydata, data.std, 'ob', 'LineWidth', 1);hold on;
+plot(data.tdata,fwd_mean+fwd_stDev, 'k-', 'LineWidth', 4);
+plot(data.tdata,fwd_mean, 'r--', 'LineWidth', 3);
+plot(data.tdata,fwd_mean-fwd_stDev, 'g', 'LineWidth', 2);
+
+% xlim([25,350])
+xlabel('Stress, T')
+ylabel('Strain, e')
+legend('Data','Model (upper)','Model (mean)', 'Model (lower)',...
+    'location','northwest')
+% set(gca,'FontSize',24)
+set(gca,'FontSize',20)
+saveas(fig,"P2_Model_Prediction.eps",'epsc');
